@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.26.xsd">
+    <changeSet id="202509111804-1" author="root">
+        <addColumn tableName="service_order">
+            <column name="status" type="varchar"/>
+        </addColumn>
+    </changeSet>
+    <changeSet id="202509111804-2" author="root">
+        <addColumn tableName="service_order">
+            <column name="min_price" type="numeric"/>
+            <column name="actual_price" type="numeric"/>
+        </addColumn>
+    </changeSet>
+    <changeSet id="202509111804-3" author="root">
+        <addColumn tableName="service_order">
+            <column name="work_description" type="varchar"/>
+            <column name="cancellation_reason" type="varchar"/>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>

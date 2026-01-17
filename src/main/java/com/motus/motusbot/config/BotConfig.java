@@ -9,17 +9,30 @@ import org.springframework.context.annotation.PropertySource;
 public class BotConfig {
 
     @Value("${bot.name}")
-    String botName;
+    String motusBotName;
 
     @Value("${bot.token}")
-    String token;
+    String motusBotToken;
 
+    @Value("MotusStationBot")
+    String motusStationBotName;
 
-    public String getBotName() {
-        return botName;
+    @Value("8394930178:AAFiAS_CoXIsBH0WH3BPScOXfbalSJzsPCk")
+    String motusStationToken;
+
+    public String getMotusBotName() {
+        return motusBotName;
     }
 
-    public String getToken() {
-        return token;
+    public String getMotusBotToken() {
+        return motusBotToken;
+    }
+
+    public String getMotusStationBotName() {
+        return motusStationBotName;
+    }
+
+    public String getMotusStationToken() {
+        return motusStationToken;
     }
 }

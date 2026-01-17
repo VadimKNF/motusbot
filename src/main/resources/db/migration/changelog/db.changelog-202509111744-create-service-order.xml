@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.26.xsd">
+    <changeSet id="202509111744-1" author="root">
+        <sql>
+            CREATE TABLE service_order (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            service_time TIMESTAMP NOT NULL,
+            car_id UUID NOT NULL REFERENCES car(id) ON DELETE RESTRICT,
+            client_id UUID NOT NULL REFERENCES client(id) ON DELETE RESTRICT,
+            station_id UUID NOT NULL REFERENCES station(id) ON DELETE RESTRICT,
+            service_id UUID NOT NULL REFERENCES service(id) ON DELETE RESTRICT,
+            created_at TIMESTAMP NOT NULL DEFAULT NOW()
+            )
+        </sql>
+    </changeSet>
+</databaseChangeLog>
