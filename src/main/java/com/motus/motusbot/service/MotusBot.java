@@ -51,12 +51,12 @@ public class MotusBot extends TelegramLongPollingBot {
 
     @Override
     public String getBotUsername() {
-        return botConfig.getBotName();
+        return botConfig.getMotusBotName();
     }
 
     @Override
     public String getBotToken() {
-        return botConfig.getToken() ;
+        return botConfig.getMotusBotToken() ;
     }
 
     @Override

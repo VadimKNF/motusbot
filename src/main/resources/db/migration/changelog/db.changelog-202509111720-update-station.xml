@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.26.xsd">
+    <changeSet id="202509111720-1" author="root">
+        <addColumn tableName="station">
+            <column name="telegram_id" type="bigint"/>
+        </addColumn>
+        <createIndex tableName="station" indexName="idx_station_telegram_id">
+            <column name="telegram_id"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

@@ -5,11 +5,57 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
                         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.26.xsd">
 
-    <!-- Подключаем SQL-файлы -->
-    <include file="db/migration/V1_init_schema.sql" relativeToChangelogFile="false"/>
+    <changeSet author="root" id="202509111430-1">
+        <sql>
+            CREATE TABLE service
+            (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+            name varchar(255) NOT NULL
+            )
+        </sql>
+    </changeSet>
 
-    <!-- Позже добавишь:
-    <include file="db/migration/V2__add_user_roles.sql" relativeToChangelogFile="false"/>
-    -->
+    <changeSet author="root" id="202509111430-2">
+        <sql>
+            CREATE TABLE client
+            (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+            telegram_id BIGINT NOT NULL UNIQUE,
+            phone_number VARCHAR(255),
+            name VARCHAR(255),
+
+            CONSTRAINT uk_client_telegram_id UNIQUE (telegram_id)
+            )
+        </sql>
+    </changeSet>
+
+    <changeSet author="root" id="202509111430-3">
+        <sql>
+            CREATE TABLE car
+            (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            make VARCHAR(255) NOT NULL,
+            model VARCHAR(255) NOT NULL,
+            year INTEGER NOT NULL,
+            vin VARCHAR(17) UNIQUE,
+            client_id UUID NOT NULL REFERENCES client(id) ON DELETE CASCADE,
+            created_at TIMESTAMP NOT NULL DEFAULT NOW()
+            )
+        </sql>
+    </changeSet>
+
+    <changeSet author="root" id="202509111430-4">
+        <sql>
+            CREATE TABLE station
+            (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+            address VARCHAR(255),
+            contact VARCHAR(255)
+            )
+        </sql>
+    </changeSet>
 
 </databaseChangeLog>
