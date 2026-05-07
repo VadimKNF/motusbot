@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 @Data
@@ -21,9 +23,20 @@ public class Station {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    @Column(name = "name")
+    private String name;
+
     @Column(name = "address")
     private String address;
 
     @Column(name = "contact")
     private String contact;
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "station_service",
+            joinColumns = @JoinColumn(name = "station_id"),
+            inverseJoinColumns = @JoinColumn(name = "service_id")
+    )
+    private Set<Service> services = new HashSet<>();
 }

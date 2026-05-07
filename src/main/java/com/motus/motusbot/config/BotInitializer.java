@@ -1,6 +1,7 @@
 package com.motus.motusbot.config;
 
 import com.motus.motusbot.service.MotusBot;
+import com.motus.motusbot.service.MotusStationBot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,11 +19,15 @@ public class BotInitializer {
     @Autowired
     private MotusBot motusBot;
 
+    @Autowired
+    private MotusStationBot motusStationBot;
+
     @EventListener({ContextRefreshedEvent.class})
     public void init() throws TelegramApiException {
         TelegramBotsApi telegramBotsApi = new TelegramBotsApi(DefaultBotSession.class);
         try {
             telegramBotsApi.registerBot(motusBot);
+            telegramBotsApi.registerBot(motusStationBot);
         } catch (TelegramApiException e) {
             log.error(e.getMessage());
         }

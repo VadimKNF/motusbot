@@ -8,4 +8,9 @@
     <include file="db/migration/changelog/db.changelog-202509111720-update-station.xml"/>
     <include file="db/migration/changelog/db.changelog-202509111744-create-service-order.xml"/>
     <include file="db/migration/changelog/db.changelog-202509111804-update-service-order.xml"/>
+    <include file="db/migration/changelog/db.changelog-202601261900-insert-services.xml"/>
+    <include file="db/migration/changelog/db.changelog-202601262000-station-service.xml"/>
+    <include file="db/migration/changelog/db.changelog-202602080000-service-order-station-nullable.xml"/>
+    <include file="db/migration/changelog/db.changelog-202602081000-station-name.xml"/>
+    <include file="db/migration/changelog/db.changelog-202602081100-insert-service-parts.xml"/>
 </databaseChangeLog>

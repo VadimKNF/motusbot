@@ -24,7 +24,7 @@ public class Car {
     @Column(name = "year", nullable = false)
     private int year;
 
-    @Column(name = "vin",  nullable = false, unique = true)
+    @Column(name = "vin", unique = true)
     private String vin;
 
     @ManyToOne(fetch = FetchType.LAZY)

@@ -4,6 +4,7 @@ public enum ButtonCallBack {
     REPAIR_BUTTON("REPAIR_BUTTON", "1.запись на ремонт"),
     PARTS_BUTTON("PARTS_BUTTON", "2.подбор запчастей"),
     OPERATOR_BUTTON("OPERATOR_BUTTON", "3.позвать оператора"),
+    PROFILE_VIEW_BUTTON("PROFILE_VIEW_BUTTON", "4.Мой профиль"),
     BACK_BUTTON("BACK_BUTTON", "⬅️Назад");
 
     private final String id;
