@@ -18,7 +18,7 @@ public class ServiceOrder {
     @Column(columnDefinition = "uuid", updatable = false, nullable = false)
     private UUID id;
 
-    @Column(name = "service_time", nullable = false)
+    @Column(name = "service_time")
     private LocalDateTime serviceTime;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -30,21 +30,21 @@ public class ServiceOrder {
     private Client client;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "station_id", nullable = false)
+    @JoinColumn(name = "station_id")
     private Station station;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "service_id", nullable = false)
+    @JoinColumn(name = "service_id")
     private Service service;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false)
-    private OrderStatus status = OrderStatus.AVAILABLE;
+    @Column(name = "status")
+    private OrderStatus status;
 
-    @Column(name = "work_description", nullable = false)
+    @Column(name = "work_description")
     private String workDescription;
 
     @Column(name = "min_price", precision = 19, scale = 2)
