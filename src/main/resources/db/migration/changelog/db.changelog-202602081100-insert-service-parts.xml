@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.26.xsd">
+    <changeSet id="202602081100-1" author="root">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">SELECT COUNT(*) FROM service WHERE name = 'Подбор запчастей'</sqlCheck>
+        </preConditions>
+        <insert tableName="service">
+            <column name="id" valueComputed="gen_random_uuid()"/>
+            <column name="created_at" valueComputed="NOW()"/>
+            <column name="name" value="Подбор запчастей"/>
+        </insert>
+    </changeSet>
+</databaseChangeLog>

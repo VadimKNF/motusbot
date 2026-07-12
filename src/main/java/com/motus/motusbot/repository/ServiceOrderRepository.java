@@ -1,14 +1,15 @@
 package com.motus.motusbot.repository;
 
-import com.motus.motusbot.model.OrderStatus;
-import com.motus.motusbot.model.ServiceOrder;
+import java.util.List;
+import java.util.UUID;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
-import java.util.UUID;
+import com.motus.motusbot.model.OrderStatus;
+import com.motus.motusbot.model.ServiceOrder;
 
 @Repository
 public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, UUID> {
@@ -35,4 +36,23 @@ public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, UUID
     List<ServiceOrder> findByStatusAndServiceIdIn(
             @Param("status") OrderStatus status,
             @Param("serviceIds") List<UUID> serviceIds);
+
+    @Query("SELECT DISTINCT o FROM ServiceOrder o " +
+           "LEFT JOIN FETCH o.service " +
+           "LEFT JOIN FETCH o.client " +
+           "LEFT JOIN FETCH o.car " +
+           "LEFT JOIN FETCH o.station " +
+           "WHERE o.status = :status AND o.service.id IN :serviceIds " +
+           "ORDER BY o.createdAt")
+    List<ServiceOrder> findByStatusAndServiceIdInWithAllRelations(
+            @Param("status") OrderStatus status,
+            @Param("serviceIds") List<UUID> serviceIds);
+
+    @Query("SELECT o FROM ServiceOrder o " +
+           "LEFT JOIN FETCH o.service " +
+           "LEFT JOIN FETCH o.client " +
+           "LEFT JOIN FETCH o.car " +
+           "LEFT JOIN FETCH o.station " +
+           "WHERE o.id = :id")
+    java.util.Optional<ServiceOrder> findByIdWithAllRelations(@Param("id") UUID id);
 }

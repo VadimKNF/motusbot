@@ -1,30 +1,5 @@
 package com.motus.motusbot.service;
 
-import com.motus.motusbot.config.BotConfig;
-import com.motus.motusbot.model.Car;
-import com.motus.motusbot.model.Client;
-import com.motus.motusbot.model.OrderStatus;
-import com.motus.motusbot.model.Service;
-import com.motus.motusbot.model.ServiceOrder;
-import com.motus.motusbot.model.Station;
-import com.motus.motusbot.repository.ServiceOrderRepository;
-import com.motus.motusbot.repository.ServiceRepository;
-import com.motus.motusbot.repository.StationRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
-import org.telegram.telegrambots.bots.TelegramLongPollingBot;
-import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
-import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
-import org.telegram.telegrambots.meta.api.objects.Message;
-import org.telegram.telegrambots.meta.api.objects.Update;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
-import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
-import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
-import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
-
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -36,6 +11,32 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
+import org.telegram.telegrambots.meta.api.objects.Message;
+import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
+import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
+import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+
+import com.motus.motusbot.config.BotConfig;
+import com.motus.motusbot.model.Car;
+import com.motus.motusbot.model.Client;
+import com.motus.motusbot.model.OrderStatus;
+import com.motus.motusbot.model.Service;
+import com.motus.motusbot.model.ServiceOrder;
+import com.motus.motusbot.model.Station;
+import com.motus.motusbot.repository.ServiceOrderRepository;
+import com.motus.motusbot.repository.ServiceRepository;
+import com.motus.motusbot.repository.StationRepository;
 
 @Component
 public class MotusStationBot extends TelegramLongPollingBot {
@@ -63,6 +64,7 @@ public class MotusStationBot extends TelegramLongPollingBot {
     private static final String CALLBACK_AVAILABLE_ORDERS = "st_avail_orders";
     private static final String CALLBACK_ACCEPT_ORDER_PREFIX = "accept_order_";
     private static final String CALLBACK_SET_ORDER_TIME_PREFIX = "set_order_time_";
+    private static final String CALLBACK_SET_WORK_DESCRIPTION = "set_work_description";
     private static final DateTimeFormatter ORDER_TIME_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
 
     private enum RegistrationState {
@@ -74,7 +76,8 @@ public class MotusStationBot extends TelegramLongPollingBot {
         EDIT_NAME,
         EDIT_ADDRESS,
         EDIT_CONTACT,
-        WAITING_FOR_ORDER_TIME
+        WAITING_FOR_ORDER_TIME,
+        WAITING_FOR_PARTS_DESCRIPTION
     }
 
     private final Map<Long, RegistrationState> userStates = new HashMap<>();
@@ -163,6 +166,8 @@ public class MotusStationBot extends TelegramLongPollingBot {
                 handleAcceptOrder(chatId, telegramId, callbackData);
             } else if (callbackData != null && callbackData.startsWith(CALLBACK_SET_ORDER_TIME_PREFIX)) {
                 handleSetOrderTimeClick(chatId, telegramId, callbackData);
+            } else if (callbackData != null && callbackData.equals(CALLBACK_SET_WORK_DESCRIPTION)) {
+                handleSetWorkDescription(chatId, telegramId);
             }
         }
     }
@@ -482,6 +487,65 @@ public class MotusStationBot extends TelegramLongPollingBot {
                 }
                 break;
             }
+            
+            case WAITING_FOR_PARTS_DESCRIPTION: {
+                UUID orderId = pendingOrderIdForTime.get(telegramId);
+                if (orderId == null) {
+                    sendMessage(chatId, "Сессия истекла.");
+                    userStates.remove(telegramId);
+                    return;
+                }
+
+                Optional<ServiceOrder> orderOpt = serviceOrderRepository.findByIdWithAllRelations(orderId);
+                if (orderOpt.isEmpty()) {
+                    sendMessage(chatId, "Заявка не найдена.");
+                    userStates.remove(telegramId);
+                    return;
+                }
+
+                ServiceOrder order = orderOpt.get();
+                order.setWorkDescription(text.trim());
+                order.setStatus(OrderStatus.IN_PROGRESS);
+                try {
+                    serviceOrderRepository.save(order);
+                    sendMessage(chatId, "Информация о деталях сохранена и отправлена клиенту. Ожидайте звонок от клиента.");
+                    userStates.remove(telegramId);
+                    pendingOrderIdForTime.remove(telegramId);
+
+                    // Notify client about the parts offer
+                    Client client = order.getClient();
+                    if (client != null && client.getTelegramId() != null) {
+                        StringBuilder message = new StringBuilder();
+                        message.append("🔧 Поступил список запчастей и стоимость\n\n");
+                        
+                        if (order.getService() != null && order.getService().getName() != null) {
+                            message.append("Услуга: ").append(order.getService().getName()).append("\n");
+                        }
+                        
+                        if (order.getCar() != null) {
+                            Car car = order.getCar();
+                            String carInfo = String.format("%s %s, %d г.", 
+                                car.getMake() != null ? car.getMake() : "",
+                                car.getModel() != null ? car.getModel() : "",
+                                car.getYear());
+                            message.append("Автомобиль: ").append(carInfo).append("\n");
+                        }
+                        
+                        if (order.getStation() != null && order.getStation().getName() != null) {
+                            message.append("Станция: ").append(order.getStation().getName()).append("\n");
+                        }
+                        
+                        message.append("\n").append(text.trim()).append("\n");
+                        message.append("\n").append("Телефон для связи: ").append(order.getStation().getContact());
+                        
+                        motusBot.sendMessageToClient(client.getTelegramId(), message.toString());
+                    }
+                } catch (Exception e) {
+                    log.error("Ошибка при сохранении описания работ: {}", e.getMessage(), e);
+                    sendMessage(chatId, "Ошибка при сохранении. Попробуйте позже.");
+                }
+                break;
+            }
 
             default:
                 sendMessage(chatId, "Используйте команду /start для начала работы.");
@@ -509,7 +573,7 @@ public class MotusStationBot extends TelegramLongPollingBot {
      */
     public void sendOrderToStation(long stationTelegramId, UUID orderId, String orderDetailsText) {
         if (orderDetailsText == null) orderDetailsText = "";
-        String text = "Новая заявка на ремонт\n\n" + orderDetailsText;
+        String text = "Новая заявка \n\n" + orderDetailsText;
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         InlineKeyboardButton acceptBtn = new InlineKeyboardButton();
         acceptBtn.setText("Принять заявку");
@@ -557,15 +621,20 @@ public class MotusStationBot extends TelegramLongPollingBot {
         if (client != null && client.getPhoneNumber() != null) {
             clientPhone = client.getPhoneNumber().trim();
         }
-        String contactMessage = "Свяжитесь с клиентом и согласуйте дату и время проведения работ\n\n📞 Телефон клиента: " + (clientPhone.isEmpty() ? "—" : clientPhone);
+        // String contactMessage = "Свяжитесь с клиентом и согласуйте дату и время проведения работ\n\n📞 Телефон клиента: " + (clientPhone.isEmpty() ? "—" : clientPhone);
+        String partsOfferMessage = "Предоставьте клиенту список вариантов"; //temp solution for mvp
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
-        message.setText(contactMessage);
+        message.setText(partsOfferMessage);
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
-        InlineKeyboardButton setTimeBtn = new InlineKeyboardButton();
-        setTimeBtn.setText("Указать согласованную дату");
-        setTimeBtn.setCallbackData(CALLBACK_SET_ORDER_TIME_PREFIX + orderId);
-        markup.setKeyboard(List.of(List.of(setTimeBtn)));
+        InlineKeyboardButton offerPartsBtn = new InlineKeyboardButton();
+        offerPartsBtn.setText("Предоставить варианты деталей");
+        offerPartsBtn.setCallbackData(CALLBACK_SET_WORK_DESCRIPTION);
+        // InlineKeyboardButton setTimeBtn = new InlineKeyboardButton();
+        // setTimeBtn.setText("Указать согласованную дату");
+        // setTimeBtn.setCallbackData(CALLBACK_SET_ORDER_TIME_PREFIX + orderId);
+        // markup.setKeyboard(List.of(List.of(setTimeBtn)));
+        markup.setKeyboard(List.of(List.of(offerPartsBtn)));
         message.setReplyMarkup(markup);
         executeMessage(message);
     }
@@ -582,6 +651,30 @@ public class MotusStationBot extends TelegramLongPollingBot {
                 "🏢 Станция: " + stationName + "\n" +
                 "📍 Адрес: " + stationAddress;
         motusBot.sendMessageToClient(client.getTelegramId(), message);
+    }
+
+    private void handleSetWorkDescription(long chatId, Long telegramId) {
+        Optional<Station> stationOpt = stationRepository.findByTelegramIdWithServices(telegramId);
+        if (stationOpt.isEmpty()) {
+            sendMessage(chatId, "Станция не найдена. Используйте /start.");
+            return;
+        }
+
+        // Find the order that this station accepted by getting orders with PAUSED status for station's services
+        List<UUID> serviceIds = stationOpt.get().getServices().stream()
+                .map(Service::getId)
+                .toList();
+        List<ServiceOrder> orders = serviceOrderRepository.findByStatusAndServiceIdInWithAllRelations(OrderStatus.PAUSED, serviceIds);
+        if (orders.isEmpty()) {
+            sendMessage(chatId, "Заявка не найдена.");
+            return;
+        }
+
+        // Assuming there's only one PAUSED order for the station
+        ServiceOrder order = orders.get(0);
+        pendingOrderIdForTime.put(telegramId, order.getId());
+        userStates.put(telegramId, RegistrationState.WAITING_FOR_PARTS_DESCRIPTION);
+        sendMessage(chatId, "Введите список вариантов деталей и их стоимость для клиента:");
     }
 
     private void handleSetOrderTimeClick(long chatId, Long telegramId, String callbackData) {

@@ -1,17 +1,15 @@
 package com.motus.motusbot.service;
 
-import com.motus.motusbot.config.BotConfig;
-import com.motus.motusbot.model.Car;
-import com.motus.motusbot.model.Client;
-import com.motus.motusbot.model.OrderStatus;
-import com.motus.motusbot.model.Service;
-import com.motus.motusbot.model.ServiceOrder;
-import com.motus.motusbot.model.Station;
-import com.motus.motusbot.repository.CarRepository;
-import com.motus.motusbot.repository.ClientRepository;
-import com.motus.motusbot.repository.ServiceOrderRepository;
-import com.motus.motusbot.repository.ServiceRepository;
-import com.motus.motusbot.repository.StationRepository;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Lazy;
@@ -28,17 +26,23 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMa
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.time.LocalDateTime;
-import java.util.Optional;
-import java.util.UUID;
-
-import static com.motus.motusbot.model.ButtonCallBack.*;
+import com.motus.motusbot.config.BotConfig;
+import static com.motus.motusbot.model.ButtonCallBack.BACK_BUTTON;
+import static com.motus.motusbot.model.ButtonCallBack.OPERATOR_BUTTON;
+import static com.motus.motusbot.model.ButtonCallBack.PARTS_BUTTON;
+import static com.motus.motusbot.model.ButtonCallBack.PROFILE_VIEW_BUTTON;
+import static com.motus.motusbot.model.ButtonCallBack.REPAIR_BUTTON;
+import com.motus.motusbot.model.Car;
+import com.motus.motusbot.model.Client;
+import com.motus.motusbot.model.OrderStatus;
+import com.motus.motusbot.model.Service;
+import com.motus.motusbot.model.ServiceOrder;
+import com.motus.motusbot.model.Station;
+import com.motus.motusbot.repository.CarRepository;
+import com.motus.motusbot.repository.ClientRepository;
+import com.motus.motusbot.repository.ServiceOrderRepository;
+import com.motus.motusbot.repository.ServiceRepository;
+import com.motus.motusbot.repository.StationRepository;
 
 @Component
 public class MotusBot extends TelegramLongPollingBot {
@@ -85,10 +89,14 @@ public class MotusBot extends TelegramLongPollingBot {
 
     private static final String HELLO = "Здравствуйте я Ваш помощник (MotusBot) \n" +
             "\n" +
-            "Помогу подобрать автозапчасти и организовать  ремонт Вашего автомобиля\n" +
+            "Помогу подобрать автозапчасти и организовать ремонт Вашего автомобиля\n" +
             "-Грамотный подбор запчастей с бесплатной доставкой \n" +
-            " -Ремонт и техническое обслуживание автомобиля любой сложности \n" +
+            "-Ремонт и техническое обслуживание автомобиля любой сложности \n" +
             "-Автоателье, тюнинг, автозвук, автомойки и другие услуги";
+
+    private static final String HELLO_PARTS = "Здравствуйте я Ваш помощник (MotusBot) \n" +
+            "\n" +
+            "Помогу подобрать автозапчасти";
 
     public static final String START = "/start";
     public static final String EDIT_PROFILE = "/editprofile";
@@ -298,6 +306,17 @@ public class MotusBot extends TelegramLongPollingBot {
         List<Car> cars = carRepository.findByClient(clientOpt.get());
         if (cars == null || cars.isEmpty()) {
             executeEditMessageText("Добавьте автомобиль в профиле (команда «Редактировать профиль» в меню).", chatId, messageId);
+            return;
+        }
+        Optional<Car> carWithoutVin = cars.stream()
+                .filter(c -> c.getVin() == null || c.getVin().trim().isEmpty())
+                .findFirst();
+        if (carWithoutVin.isPresent()) {
+            Car car = carWithoutVin.get();
+            pendingRepairServiceId.put(telegramId, partsService.get().getId());
+            pendingRepairCarId.put(telegramId, car.getId());
+            userStates.put(telegramId, RegistrationState.WAITING_FOR_VIN);
+            executeEditMessageText("У автомобиля " + String.format("%s %s, %d г.", car.getMake(), car.getModel(), car.getYear()) + " не указан VIN-номер. Для подбора запчастей укажите VIN:", chatId, messageId);
             return;
         }
         partsFlowTelegramIds.add(telegramId);
@@ -565,7 +584,7 @@ public class MotusBot extends TelegramLongPollingBot {
                     try {
                         int year = Integer.parseInt(text.trim());
                         if (year < 1900 || year > 2100) {
-                            sendMessage(chatId, "Пожалуйста, введите корректный год выпуска (от 1900 до 2100):");
+                            sendMessage(chatId, "Пожалуйста, введите корректный год выпуска:");
                             return;
                         }
                         car.setYear(year);
@@ -635,7 +654,7 @@ public class MotusBot extends TelegramLongPollingBot {
                 UUID orderId = pendingServiceOrderId.remove(telegramId);
                 userStates.remove(telegramId);
                 if (orderId == null) {
-                    sendMessage(chatId, "Сессия заявки истекла. Начните запись на ремонт заново.");
+                    sendMessage(chatId, "Сессия заявки истекла. Начните запись заново.");
                     return;
                 }
                 Optional<ServiceOrder> orderOpt = serviceOrderRepository.findByIdWithServiceAndClientAndCar(orderId);
@@ -700,15 +719,18 @@ public class MotusBot extends TelegramLongPollingBot {
         String clientName = order.getClient() != null ? order.getClient().getName() : "—";
         String clientPhone = order.getClient() != null ? order.getClient().getPhoneNumber() : "—";
         String carInfo = "—";
+        String vin = "";
         if (order.getCar() != null) {
             Car c = order.getCar();
             carInfo = String.format("%s %s, %d г.", c.getMake(), c.getModel(), c.getYear());
+            vin = c.getVin() != null ? c.getVin() : "не указан";
         }
         String workDesc = order.getWorkDescription() != null ? order.getWorkDescription() : "—";
         return "🔧 Услуга: " + serviceName + "\n" +
                 "👤 Клиент: " + clientName + "\n" +
                 "📞 Телефон: " + clientPhone + "\n" +
                 "🚗 Автомобиль: " + carInfo + "\n" +
+                "🚗 VIN: " + vin + "\n" +
                 "📝 Описание работ: " + workDesc;
     }
 
@@ -797,7 +819,7 @@ public class MotusBot extends TelegramLongPollingBot {
 
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
-        message.setText(HELLO);
+        message.setText(HELLO_PARTS); //temp solution for mvp
 
         InlineKeyboardMarkup markupInLine = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rowsInLine = new ArrayList<>();
@@ -805,14 +827,14 @@ public class MotusBot extends TelegramLongPollingBot {
         List<InlineKeyboardButton> rowParts = new ArrayList<>();
         List<InlineKeyboardButton> rowOperator = new ArrayList<>();
 
-        InlineKeyboardButton repairButton = createButton(REPAIR_BUTTON.getId(), REPAIR_BUTTON.getLabel());
+        // InlineKeyboardButton repairButton = createButton(REPAIR_BUTTON.getId(), REPAIR_BUTTON.getLabel());
         InlineKeyboardButton partsButton = createButton(PARTS_BUTTON.getId(), PARTS_BUTTON.getLabel());
-        InlineKeyboardButton operatorButton = createButton(OPERATOR_BUTTON.getId(), OPERATOR_BUTTON.getLabel());
+        // InlineKeyboardButton operatorButton = createButton(OPERATOR_BUTTON.getId(), OPERATOR_BUTTON.getLabel());
 
         List<InlineKeyboardButton> rowProfile = new ArrayList<>();
-        rowRepair.add(repairButton);
+        // rowRepair.add(repairButton);
         rowParts.add(partsButton);
-        rowOperator.add(operatorButton);
+        // rowOperator.add(operatorButton);
         rowsInLine.add(rowRepair);
         rowsInLine.add(rowParts);
         rowsInLine.add(rowOperator);
