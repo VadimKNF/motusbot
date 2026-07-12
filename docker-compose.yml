@@ -18,7 +18,7 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      - motus-db
+      - postgres-db
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/motusdb
       - SPRING_DATASOURCE_USERNAME=root
