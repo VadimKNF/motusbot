@@ -1,10 +1,13 @@
-FROM eclipse-temurin:17-jdk-alpine AS build
+# Этап сборки: используем образ с предустановленным Gradle и Java 17
+FROM gradle:8-jdk17-alpine AS build
 WORKDIR /app
 COPY . .
-RUN ./mvnw clean package -DskipTests
+# Собираем проект через стандартный gradle (без ./gradlew)
+RUN gradle bootJar -x test
 
+# Этап запуска: минимальный образ только с JRE
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
-COPY --from=build /app/target/*.jar app.jar
-# Ограничиваем память Java внутри контейнера
+# В Gradle готовый jar-файл лежит в папочке build/libs/
+COPY --from=build /app/build/libs/*.jar app.jar
 ENTRYPOINT ["java", "-Xms512m", "-Xmx1024m", "-jar", "app.jar"]
