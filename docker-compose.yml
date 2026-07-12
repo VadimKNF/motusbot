@@ -1,0 +1,30 @@
+version: '3.8'
+services:
+  postgres-db:
+    image: postgres:15-alpine
+    container_name: motus_db
+    environment:
+      POSTGRES_DB: motusDB
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  spring-app:
+    build: .
+    container_name: motusBot
+    ports:
+      - "8080:8080"
+    depends_on:
+      - motus-db
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/motusdb
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=root
+      - TELEGRAM_BOT_TOKEN_1=8019991456:AAFN-KFUbk5Tfpsk4gKoWwDd2PRH2SngiOs
+      - TELEGRAM_BOT_TOKEN_2=8394930178:AAFiAS_CoXIsBH0WH3BPScOXfbalSJzsPCk
+
+volumes:
+  pgdata:
